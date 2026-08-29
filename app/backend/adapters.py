@@ -611,12 +611,10 @@ _ag_pool = AntigravityKeyPool()
 
 
 _MODEL_CASCADE = [
-    "gemini-3.7-flash",
-    "gemini-3.6-flash",
-    "claude-opus-4-6",
-    "claude-sonnet-4-6",
-    "gemma-4-31b-it",
-    "gemini-3.5-flash",
+    "gemini-3.7-flash",           # 1. Gemini 3.7 Flash High (Chạy chính)
+    "claude-opus-4-6",            # 2. Claude Opus 4.6 Thinking
+    "claude-sonnet-4-6",          # 2b. Claude Sonnet 4.6 Thinking
+    "gemma-4-31b-it",             # 3. GPT-OSS 120B
 ]
 
 
