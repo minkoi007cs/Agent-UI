@@ -1331,6 +1331,9 @@ function modelLabel(a) {
   if (a.model === "glm") {
     return (a.glm_model || "glm-4.6");
   }
+  if (a.model === "antigravity" || a.model === "gemini") {
+    return (a.antigravity_model || a.gemini_model || "gemini-3.7-flash");
+  }
   return (a.claude_model || "claude-sonnet-4-6").replace(/^claude-/, "");
 }
 
@@ -1598,6 +1601,8 @@ function renderChatHeader(w) {
     ? (agent.deepseek_model || agent.default_deepseek_model || "deepseek-v4-flash")
     : agent.model === "glm"
     ? (agent.glm_model || agent.default_glm_model || "glm-4.6")
+    : (agent.model === "antigravity" || agent.model === "gemini")
+    ? (agent.antigravity_model || agent.gemini_model || "gemini-3.7-flash")
     : (agent.claude_model || agent.default_claude_model || "claude-sonnet-4-6").replace(/^claude-/, "");
   const curEffort = agent.effort || "";
 
@@ -3042,13 +3047,16 @@ async function cmdStatus(w) {
   const isGrok = agent.model === "grok";
   const isDeepseek = agent.model === "deepseek";
   const isGlm = agent.model === "glm";
+  const isAntigravity = agent.model === "antigravity" || agent.model === "gemini";
   const cur = isGrok ? (agent.grok_model || "grok-build")
     : isDeepseek ? (agent.deepseek_model || "deepseek-v4-flash")
     : isGlm ? (agent.glm_model || "glm-4.6")
+    : isAntigravity ? (agent.antigravity_model || agent.gemini_model || "gemini-3.7-flash")
     : (agent.claude_model || "claude-sonnet-4-6");
   const def = isGrok ? (agent.default_grok_model || "grok-build")
     : isDeepseek ? (agent.default_deepseek_model || "deepseek-v4-flash")
     : isGlm ? (agent.default_glm_model || "glm-4.6")
+    : isAntigravity ? (agent.default_antigravity_model || "gemini-3.7-flash")
     : (agent.default_claude_model || "claude-sonnet-4-6");
   const lines = [
     `**Agent**: \`${agent.id}\``,
