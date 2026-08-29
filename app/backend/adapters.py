@@ -539,4 +539,201 @@ def get_stream(model: str):
         return deepseek_stream
     if model == "glm":
         return glm_stream
+    if model in ("antigravity", "gemini"):
+        return antigravity_stream
     raise AdapterError(f"unknown model adapter: {model}")
+
+
+# ---------------------------------------------------------------------------
+# Antigravity Multi-Account Pool Adapter
+# Automatically rotates across Antigravity Pro keys on 429/Quota limit
+# ---------------------------------------------------------------------------
+
+from pathlib import Path
+import time
+
+
+class AntigravityKeyPool:
+    def __init__(self):
+        self._keys: list[str] = []
+        self._current_idx = 0
+        self._cooldowns: dict[int, float] = {}
+        self._reload_keys()
+
+    def _reload_keys(self):
+        keys = []
+        env_file = Path(__file__).resolve().parent.parent / ".antigravity_keys.env"
+        if env_file.exists():
+            with env_file.open("r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("ANTIGRAVITY_KEY_") and "=" in line:
+                        val = line.split("=", 1)[1].strip().strip('"').strip("'")
+                        if val and val not in keys:
+                            keys.append(val)
+        for i in range(1, 10):
+            k = os.environ.get(f"ANTIGRAVITY_KEY_{i}") or os.environ.get(f"GEMINI_API_KEY_{i}")
+            if k and k not in keys:
+                keys.append(k)
+        if not keys and os.environ.get("GEMINI_API_KEY"):
+            keys.append(os.environ["GEMINI_API_KEY"])
+        self._keys = keys
+
+    @property
+    def total_keys(self) -> int:
+        self._reload_keys()
+        return len(self._keys)
+
+    def get_key(self) -> tuple[str | None, int, int]:
+        self._reload_keys()
+        if not self._keys:
+            return None, 0, 0
+        now = time.time()
+        n = len(self._keys)
+        for offset in range(n):
+            idx = (self._current_idx + offset) % n
+            cool = self._cooldowns.get(idx, 0)
+            if now >= cool:
+                self._current_idx = idx
+                return self._keys[idx], idx + 1, n
+        earliest_idx = min(range(n), key=lambda i: self._cooldowns.get(i, 0))
+        self._current_idx = earliest_idx
+        return self._keys[earliest_idx], earliest_idx + 1, n
+
+    def mark_rate_limited(self, idx_1_based: int, cooldown_seconds: float = 60.0):
+        idx = idx_1_based - 1
+        if 0 <= idx < len(self._keys):
+            self._cooldowns[idx] = time.time() + cooldown_seconds
+            self._current_idx = (idx + 1) % len(self._keys)
+
+
+_ag_pool = AntigravityKeyPool()
+
+
+_MODEL_CASCADE = [
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "claude-opus-4-6",
+    "claude-sonnet-4-6",
+    "gemma-4-31b-it",
+    "gemini-3.5-flash",
+]
+
+
+async def antigravity_stream(
+    message: str,
+    system_prompt: str,
+    cwd: str,
+    model: str = "gemini-3.7-flash",
+    effort: str | None = None,
+    resume_session_id: str | None = None,
+) -> AsyncIterator[dict]:
+    import httpx
+
+    # Build model trial list starting with the requested/default model
+    trial_models = [model] + [m for m in _MODEL_CASCADE if m != model]
+    max_account_retries = max(1, _ag_pool.total_keys)
+    url = "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+
+    for acc_attempt in range(max_account_retries):
+        key, acc_num, total_accs = _ag_pool.get_key()
+        if not key:
+            yield {
+                "type": "error",
+                "message": "Chưa tìm thấy Antigravity Key nào trong app/.antigravity_keys.env",
+            }
+            return
+
+        headers = {
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+        }
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": message})
+
+        account_exhausted = True
+
+        for current_model in trial_models:
+            payload = {
+                "model": current_model,
+                "messages": messages,
+                "stream": True,
+            }
+
+            yield {
+                "type": "meta",
+                "data": {
+                    "model": current_model,
+                    "account_index": acc_num,
+                    "total_accounts": total_accs,
+                },
+            }
+
+            assembled: list[str] = []
+            switch_to_next_model = False
+            model_error_reason = ""
+
+            try:
+                async with httpx.AsyncClient(timeout=45.0) as client:
+                    async with client.stream("POST", url, headers=headers, json=payload) as resp:
+                        if resp.status_code in (404, 429, 500, 503, 529):
+                            switch_to_next_model = True
+                            err_body = await resp.aread()
+                            model_error_reason = f"HTTP {resp.status_code}: {err_body.decode('utf-8', errors='replace')[:80]}"
+                        elif resp.status_code != 200:
+                            switch_to_next_model = True
+                            err_body = await resp.aread()
+                            model_error_reason = f"HTTP {resp.status_code}: {err_body.decode('utf-8', errors='replace')[:80]}"
+                        else:
+                            yield {"type": "status", "status": "responding"}
+                            async for line in resp.aiter_lines():
+                                if not line or not line.startswith("data: "):
+                                    continue
+                                data_str = line[6:].strip()
+                                if data_str == "[DONE]":
+                                    break
+                                try:
+                                    chunk = json.loads(data_str)
+                                    delta = chunk["choices"][0]["delta"].get("content", "")
+                                    if delta:
+                                        assembled.append(delta)
+                                        yield {"type": "delta", "text": delta}
+                                except Exception:
+                                    pass
+
+            except (httpx.ConnectError, httpx.TimeoutException, httpx.ReadTimeout) as e:
+                switch_to_next_model = True
+                model_error_reason = f"Timeout/Connection: {e}"
+
+            if switch_to_next_model:
+                yield {
+                    "type": "thinking",
+                    "text": f"⚡ [Acc #{acc_num}] {current_model} tạm bận ({model_error_reason[:35]}) -> Chuyển sang model dự phòng tiếp theo...",
+                }
+                await asyncio.sleep(0.5)
+                continue  # try next model in trial_models
+
+            # Successfully streamed response
+            account_exhausted = False
+            final_text = "".join(assembled)
+            yield {"type": "agent_done", "status": "ok", "text": final_text}
+            return
+
+        if account_exhausted:
+            _ag_pool.mark_rate_limited(acc_num, cooldown_seconds=60.0)
+            next_key, next_acc_num, _ = _ag_pool.get_key()
+            yield {
+                "type": "thinking",
+                "text": f"🔄 Toàn bộ model trên Antigravity Acc #{acc_num} đã chạm hạn mức. Tự động chuyển sang Acc #{next_acc_num}/{total_accs}...",
+            }
+            await asyncio.sleep(1.0)
+            continue  # try next account
+
+    yield {
+        "type": "error",
+        "message": f"Tất cả {total_accs} tài khoản Antigravity Pro đều đang chạm hạn mức hoặc tạm nghỉ. Vui lòng đợi trong giây lát.",
+    }
+

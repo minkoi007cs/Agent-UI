@@ -1,7 +1,17 @@
+workspace_root: /Users/khoihoang
+
 projects:
-  - /users/PGS0407/binben14/VietHuy/ConstructionVLM-Eval-AGENT
-  - /users/PGS0407/binben14/VietHuy/DFU-Pipeline-AGENT
-  - /users/PGS0407/binben14/VietHuy/ConSynth-X/AGENT
-  - /users/PGS0407/binben14/VietHuy/Hoang/ADE
-  - /users/PGS0407/binben14/VietHuy/Sci_Agent
-  - /users/PGS0407/binben14/VietHuy/AECPlayGround-AGENT
+  - /Users/khoihoang/Desktop/lifedashboard
+  - /Users/khoihoang/Desktop/house_renting
+  - /Users/khoihoang/Documents/App Wallet
+  - /Users/khoihoang/Documents/fitmatch_AI
+  - /Users/khoihoang/Documents/CANVAS
+  - /Users/khoihoang/Documents/Learning_app
+
+# --- registry gốc của tác giả (path trên server, không dùng trên máy này) ---
+# - /users/PGS0407/binben14/VietHuy/ConstructionVLM-Eval-AGENT
+# - /users/PGS0407/binben14/VietHuy/DFU-Pipeline-AGENT
+# - /users/PGS0407/binben14/VietHuy/ConSynth-X/AGENT
+# - /users/PGS0407/binben14/VietHuy/Hoang/ADE
+# - /users/PGS0407/binben14/VietHuy/Sci_Agent
+# - /users/PGS0407/binben14/VietHuy/AECPlayGround-AGENT

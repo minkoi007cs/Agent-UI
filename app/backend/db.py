@@ -159,10 +159,11 @@ def init_db() -> None:
             );
             """
         )
-        # backward-compat: add grok_model column if older db
         _ensure_column(c, "agent_overrides", "grok_model", "TEXT")
         _ensure_column(c, "agent_overrides", "deepseek_model", "TEXT")
         _ensure_column(c, "agent_overrides", "glm_model", "TEXT")
+        _ensure_column(c, "agent_overrides", "antigravity_model", "TEXT")
+        _ensure_column(c, "agent_overrides", "gemini_model", "TEXT")
         _ensure_column(c, "agent_overrides", "model", "TEXT")  # adapter override
         # latest real token usage from the CLI (JSON: input/output/cache buckets)
         _ensure_column(c, "sessions", "usage", "TEXT")

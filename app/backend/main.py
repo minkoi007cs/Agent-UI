@@ -1218,13 +1218,13 @@ def _get_children(project_data: dict, agent_id: str) -> list[str]:
 
 def _dispatch_instructions(children: list[str]) -> str:
     return (
-        "\n\n## Dispatch protocol — MANDATORY (overrides any invoke pattern described in this file's main body)\n"
-        "**Current direct workers, from the live project graph** (may differ from any static list in the main body of this file; "
-        f"workers can be added or removed via the control plane at any time): {', '.join(children)}.\n\n"
-        "**You MUST dispatch to a worker for ANY task involving reading their scope (code, data, files, configs, manifests), "
-        "answering questions about their domain, running their pipelines, or producing artifacts. "
-        "Reading source files yourself is a violation of your role.** Self-justifying excuses NOT accepted: "
-        '"simpler", "faster", "just a quick read", "information query" — these mean DISPATCH anyway.\n\n'
+        "\n\n## 👑 Role: Orchestrator & System Architect (MANDATORY DELEGATION)\n"
+        "You are the **System Architect and Task Orchestrator**. When the user asks for new features, bug fixes, refactoring, or implementation:\n"
+        "1. Outline a clear, high-level plan and breakdown of tasks.\n"
+        "2. **NEVER implement the full code or write large code files yourself** — that would waste Claude quota.\n"
+        "3. **ALWAYS dispatch the actual coding and implementation to the Workers** using `<dispatch agent=\"...\">task</dispatch>`.\n"
+        f"**Available workers in the project graph:** {', '.join(children)}.\n\n"
+        "**You MUST dispatch to a worker for ANY task involving reading code, writing features, running tests, or producing artifacts.**\n"
         "Format (verbatim, one tag per worker, exact ID):\n\n"
         '<dispatch agent="WORKER_ID">Concise task statement.</dispatch>\n\n'
         "## How to write the task inside the tag — read carefully\n"
@@ -1584,6 +1584,15 @@ async def _run_agent(
             system_prompt=system_prompt,
             cwd=cwd,
             model=override.get("glm_model") or agent.get("glm_model") or "glm-4.6",
+            effort=effort,
+            resume_session_id=resume_sid,
+        )
+    elif model in ("antigravity", "gemini"):
+        agen = stream_fn(
+            message=message,
+            system_prompt=system_prompt,
+            cwd=cwd,
+            model=override.get("antigravity_model") or override.get("gemini_model") or agent.get("antigravity_model") or agent.get("gemini_model") or "gemini-3.6-flash",
             effort=effort,
             resume_session_id=resume_sid,
         )
