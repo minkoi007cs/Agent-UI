@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="agentBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0a0f"/>
+      <stop offset="100%" stop-color="#141424"/>
+    </linearGradient>
+    <linearGradient id="agentGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a855f7"/>
+      <stop offset="100%" stop-color="#6366f1"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="16" fill="url(#agentBg)" stroke="url(#agentGlow)" stroke-width="2"/>
+  <path d="M15 28 C15 22 22 18 32 18 C42 18 49 22 49 28 L49 35 C49 41 42 45 32 45 C22 45 15 41 15 35 Z" fill="none" stroke="url(#agentGlow)" stroke-width="2.5"/>
+  <line x1="20" y1="31" x2="44" y2="31" stroke="#38bdf8" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="32" cy="31" r="5" fill="#a855f7"/>
+  <circle cx="32" cy="31" r="2" fill="#ffffff"/>
+</svg>
